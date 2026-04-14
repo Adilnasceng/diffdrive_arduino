@@ -1,0 +1,55 @@
+# Build artifacts
+build/
+install/
+log/
+
+# colcon
+.colcon/
+**/COLCON_IGNORE
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.cmake
+!diffdrive_arduino.xml
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# ROS2 generated
+*.devel/
+devel/
+*.catkin_ws/
+
+# Launch build/install/log dirs inside bringup
+bringup/launch/build/
+bringup/launch/install/
+bringup/launch/log/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Arduino compiled output
+*.elf
+*.hex
+*.map
+*.lst
+
+# Serial port lock files
+/dev/
+
+# Map files (büyük, repoya koyma)
+*.pgm
+*.yaml.bak
