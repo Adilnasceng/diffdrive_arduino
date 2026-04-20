@@ -36,7 +36,7 @@ def generate_launch_description():
         actions=[
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
-                    os.path.join(rplidar_ros_pkg, 'launch', 'rplidar_a2m12_launch.py')
+                    os.path.join(rplidar_ros_pkg, 'launch', 'rplidar_s1_launch.py')
                 ),
                 launch_arguments={'serial_port': LaunchConfiguration('serial_port')}.items()
             )
