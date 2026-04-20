@@ -8,6 +8,7 @@
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/system_interface.hpp"
+#include "hardware_interface/types/hardware_component_interface_params.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
 #include "rclcpp/clock.hpp"
 #include "rclcpp/duration.hpp"
@@ -49,7 +50,7 @@ public:
 
   DIFFDRIVE_ARDUINO_PUBLIC
   hardware_interface::CallbackReturn on_init(
-    const hardware_interface::HardwareInfo & info) override;
+    const hardware_interface::HardwareComponentInterfaceParams & params) override;
 
   DIFFDRIVE_ARDUINO_PUBLIC
   ::std::vector<hardware_interface::StateInterface::ConstSharedPtr> on_export_state_interfaces() override;
