@@ -13,6 +13,7 @@
 #define READ_ENCODERS  'e'
 #define MOTOR_SPEEDS   'm'
 #define MOTOR_RAW_PWM  'o'
+#undef  PING                // AVR iomxx0_1.h: PING = Port G input register — çakışmayı önle
 #define PING           'p'
 #define RESET_ENCODERS 'r'
 #define SERVO_WRITE    's'

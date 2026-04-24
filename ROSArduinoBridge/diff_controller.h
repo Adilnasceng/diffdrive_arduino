@@ -82,7 +82,8 @@ void doPID(SetPointInfo * p) {
   */
   //output = (Kp * Perror + Kd * (Perror - p->PrevErr) + Ki * p->Ierror) / Ko;
   // p->PrevErr = Perror;
-  output = (Kp * Perror - Kd * (input - p->PrevInput) + p->ITerm) / Ko;
+  if (Ko == 0) Ko = 1;  /* Ko=0 → division by zero / lroundf(Inf) UB koruması */
+  output = (long)lroundf((float)(Kp * Perror - Kd * (input - p->PrevInput) + p->ITerm) / Ko);
   p->PrevEnc = p->Encoder;
 
   output += p->output;
@@ -116,7 +117,16 @@ void updatePID() {
     * PrevInput is considered a good proxy to detect
     * whether reset has already happened
     */
-    if (leftPID.PrevInput != 0 || rightPID.PrevInput != 0) resetPID();
+    /* PrevInput == 0 iken tekerlek durmuşsa resetPID() çalışmaz; output ve ITerm
+     * stale kalır → sonraki komutta ani güç patlaması. output ve ITerm de kontrol et. */
+    if (leftPID.PrevInput != 0 || rightPID.PrevInput != 0 ||
+        leftPID.output     != 0 || rightPID.output     != 0 ||
+        leftPID.ITerm      != 0 || rightPID.ITerm      != 0) resetPID();
+    /* Coasting (eylemsizlik kayması) sırasında PrevEnc'i güncelle.
+     * Aksi hâlde yeni komut geldiğinde input = Encoder - PrevEnc formülü
+     * tüm kayma mesafesini tek frame'in hızı olarak hesaplar → sarsıntı. */
+    leftPID.PrevEnc  = leftPID.Encoder;
+    rightPID.PrevEnc = rightPID.Encoder;
     return;
   }
 
