@@ -52,10 +52,10 @@ public:
     const hardware_interface::HardwareInfo & info) override;
 
   DIFFDRIVE_ARDUINO_PUBLIC
-  ::std::vector<hardware_interface::StateInterface::ConstSharedPtr> on_export_state_interfaces() override;
+  ::std::vector<hardware_interface::StateInterface> export_state_interfaces() override;
 
   DIFFDRIVE_ARDUINO_PUBLIC
-  ::std::vector<hardware_interface::CommandInterface::SharedPtr> on_export_command_interfaces() override;
+  ::std::vector<hardware_interface::CommandInterface> export_command_interfaces() override;
 
   DIFFDRIVE_ARDUINO_PUBLIC
   hardware_interface::CallbackReturn on_configure(

@@ -188,31 +188,31 @@ hardware_interface::CallbackReturn DiffDriveArduinoHardware::on_init(
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
-::std::vector<hardware_interface::StateInterface::ConstSharedPtr> DiffDriveArduinoHardware::on_export_state_interfaces()
+::std::vector<hardware_interface::StateInterface> DiffDriveArduinoHardware::export_state_interfaces()
 {
-  ::std::vector<hardware_interface::StateInterface::ConstSharedPtr> state_interfaces;
+  ::std::vector<hardware_interface::StateInterface> state_interfaces;
 
-  state_interfaces.push_back(::std::make_shared<hardware_interface::StateInterface>(
+  state_interfaces.emplace_back(hardware_interface::StateInterface(
     wheel_l_.name, hardware_interface::HW_IF_POSITION, &wheel_l_.pos));
-  state_interfaces.push_back(::std::make_shared<hardware_interface::StateInterface>(
+  state_interfaces.emplace_back(hardware_interface::StateInterface(
     wheel_l_.name, hardware_interface::HW_IF_VELOCITY, &wheel_l_.vel));
 
-  state_interfaces.push_back(::std::make_shared<hardware_interface::StateInterface>(
+  state_interfaces.emplace_back(hardware_interface::StateInterface(
     wheel_r_.name, hardware_interface::HW_IF_POSITION, &wheel_r_.pos));
-  state_interfaces.push_back(::std::make_shared<hardware_interface::StateInterface>(
+  state_interfaces.emplace_back(hardware_interface::StateInterface(
     wheel_r_.name, hardware_interface::HW_IF_VELOCITY, &wheel_r_.vel));
 
   return state_interfaces;
 }
 
-::std::vector<hardware_interface::CommandInterface::SharedPtr> DiffDriveArduinoHardware::on_export_command_interfaces()
+::std::vector<hardware_interface::CommandInterface> DiffDriveArduinoHardware::export_command_interfaces()
 {
-  ::std::vector<hardware_interface::CommandInterface::SharedPtr> command_interfaces;
+  ::std::vector<hardware_interface::CommandInterface> command_interfaces;
 
-  command_interfaces.push_back(::std::make_shared<hardware_interface::CommandInterface>(
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
     wheel_l_.name, hardware_interface::HW_IF_VELOCITY, &wheel_l_.cmd));
 
-  command_interfaces.push_back(::std::make_shared<hardware_interface::CommandInterface>(
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
     wheel_r_.name, hardware_interface::HW_IF_VELOCITY, &wheel_r_.cmd));
 
   return command_interfaces;
