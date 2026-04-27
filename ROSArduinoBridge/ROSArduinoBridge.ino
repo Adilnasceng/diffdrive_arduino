@@ -54,7 +54,7 @@
 #endif
 
 int arg   = 0;
-int index = 0;
+int idx   = 0;  /* "index" ARM strings.h'da char* index(const char*,int) olarak tanımlı — çakışmayı önle */
 char chr;
 char cmd;
 char argv1[16];
@@ -73,7 +73,7 @@ void resetCommand() {
   arg1 = 0;
   arg2 = 0;
   arg  = 0;
-  index = 0;
+  idx  = 0;
 }
 
 void updateBuzzer() {
@@ -222,27 +222,27 @@ void loop() {
     chr = Serial.read();
 
     if (chr == 13) {  // CR ile komut biter
-      if (arg == 1)      argv1[index] = '\0';
-      else if (arg == 2) argv2[index] = '\0';
+      if (arg == 1)      argv1[idx] = '\0';
+      else if (arg == 2) argv2[idx] = '\0';
       runCommand();
       resetCommand();
     } else if (chr == ' ') {
       if (arg == 0) {
         arg = 1;
       } else if (arg == 1) {
-        argv1[index] = '\0';
-        arg   = 2;
-        index = 0;
+        argv1[idx] = '\0';
+        arg = 2;
+        idx = 0;
       } else if (arg == 2) {
         /* Fazladan boşluk: argv2'yi sonlandır, daha fazla karakter kabul etme */
-        argv2[index] = '\0';
-        index = 15;
+        argv2[idx] = '\0';
+        idx = 15;
       }
       continue;
     } else {
       if (arg == 0)      cmd = chr;
-      else if (arg == 1) { if (index < 15) argv1[index++] = chr; }
-      else if (arg == 2) { if (index < 15) argv2[index++] = chr; }
+      else if (arg == 1) { if (idx < 15) argv1[idx++] = chr; }
+      else if (arg == 2) { if (idx < 15) argv2[idx++] = chr; }
     }
   }
 
