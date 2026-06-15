@@ -24,11 +24,16 @@ long Ping(int pin) {
   // pulse whose duration is the time (in microseconds) from the sending
   // of the ping to the reception of its echo off of an object.
   pinMode(pin, INPUT);
-  duration = pulseIn(pin, HIGH);
+  // Timeout: 30000 µs = 30 ms → maksimum ~5 metre menzil (340 m/s × 0.030 s / 2)
+  // Varsayılan 1 saniyelik timeout PID döngüsünü kilitler — kısaltıldı
+  duration = pulseIn(pin, HIGH, 30000UL);
 
-  // convert the time into meters
+  // Timeout durumunda pulseIn 0 döndürür → -1 ile hata işaretle
+  if (duration == 0) return -1;
+
+  // convert the time into cm
   range = microsecondsToCm(duration);
-  
+
   return(range);
 }
 

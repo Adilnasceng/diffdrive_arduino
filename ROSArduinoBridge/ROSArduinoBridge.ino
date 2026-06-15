@@ -62,12 +62,12 @@
   const int PID_INTERVAL = 1000 / PID_RATE;
   
   /* Track the next time we make a PID calculation */
-  unsigned long nextPID = PID_INTERVAL;
+  unsigned long nextPID = 0;
 
   /* Stop the robot if it hasn't received a movement command
    in this number of milliseconds */
   #define AUTO_STOP_INTERVAL 2000
-  long lastMotorCommand = AUTO_STOP_INTERVAL;
+  unsigned long lastMotorCommand = 0;
 #endif
 
 /* Variable initialization */
@@ -137,13 +137,14 @@ void updateBuzzer() {
 }
 
 /* Run a command.  Commands are defined in commands.h */
-int runCommand() {
+void runCommand() {
   int i = 0;
   char *p = argv1;
   char *str;
-  int pid_args[4];
-  arg1 = atoi(argv1);
-  arg2 = atoi(argv2);
+  char *saveptr;
+  int pid_args[4] = {Kp, Kd, Ki, Ko};  /* Mevcut değerlerle başlat — eksik argümanda bozulma olmaz */
+  arg1 = atol(argv1);
+  arg2 = atol(argv2);
   
   switch(cmd) {
   case GET_BAUDRATE:
@@ -170,14 +171,14 @@ int runCommand() {
     Serial.println("OK"); 
     break;
   case DIGITAL_WRITE:
-    if (arg2 == 0) digitalWrite(arg1, LOW);
-    else if (arg2 == 1) digitalWrite(arg1, HIGH);
-    Serial.println("OK"); 
+    if      (arg2 == 0) { digitalWrite(arg1, LOW);    Serial.println("OK"); }
+    else if (arg2 == 1) { digitalWrite(arg1, HIGH);   Serial.println("OK"); }
+    else                  Serial.println("Invalid Command");
     break;
   case PIN_MODE:
-    if (arg2 == 0) pinMode(arg1, INPUT);
-    else if (arg2 == 1) pinMode(arg1, OUTPUT);
-    Serial.println("OK");
+    if      (arg2 == 0) { pinMode(arg1, INPUT);        Serial.println("OK"); }
+    else if (arg2 == 1) { pinMode(arg1, OUTPUT);       Serial.println("OK"); }
+    else                  Serial.println("Invalid Command");
     break;
   case PING:
     Serial.println(Ping(arg1));
@@ -225,9 +226,8 @@ int runCommand() {
     Serial.println("OK"); 
     break;
   case UPDATE_PID:
-    while ((str = strtok_r(p, ":", &p)) != NULL) {
-       pid_args[i] = atoi(str);
-       i++;
+    for (str = strtok_r(p, ":", &saveptr); str != NULL; str = strtok_r(NULL, ":", &saveptr)) {
+      if (i < 4) pid_args[i++] = atoi(str);
     }
     Kp = pid_args[0];
     Kd = pid_args[1];
@@ -311,6 +311,11 @@ void loop() {
         arg = 2;
         index = 0;
       }
+      else if (arg == 2) {
+        /* Fazladan boşluk: argv2'yi sonlandır, daha fazla karakter kabul etme */
+        argv2[index] = '\0';
+        index = 15;
+      }
       continue;
     }
     else {
@@ -320,12 +325,10 @@ void loop() {
       }
       else if (arg == 1) {
         // Subsequent arguments can be more than one character
-        argv1[index] = chr;
-        index++;
+        if (index < 15) argv1[index++] = chr;
       }
       else if (arg == 2) {
-        argv2[index] = chr;
-        index++;
+        if (index < 15) argv2[index++] = chr;
       }
     }
   }
@@ -335,13 +338,13 @@ void loop() {
   
 // If we are using base control, run a PID calculation at the appropriate intervals
 #ifdef USE_BASE
-  if (millis() > nextPID) {
+  if ((millis() - nextPID) >= (unsigned long)PID_INTERVAL) {
     updatePID();
-    nextPID += PID_INTERVAL;
+    nextPID = millis();  /* Resync — gecikme sonrası catch-up döngüsünü önle */
   }
-  
+
   // Check to see if we have exceeded the auto-stop interval
-  if ((millis() - lastMotorCommand) > AUTO_STOP_INTERVAL) {;
+  if (moving && (millis() - lastMotorCommand) > AUTO_STOP_INTERVAL) {
     setMotorSpeeds(0, 0);
     moving = 0;
   }

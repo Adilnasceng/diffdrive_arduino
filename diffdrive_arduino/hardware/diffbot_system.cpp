@@ -97,13 +97,23 @@ hardware_interface::CallbackReturn DiffDriveArduinoHardware::on_init(
     auto erb_it = info_.hardware_parameters.find("enable_reverse_buzzer");
     if (erb_it != info_.hardware_parameters.end())
     {
-      cfg_.enable_reverse_buzzer = (erb_it->second == "true");
+      const auto & erb_val = erb_it->second;
+      cfg_.enable_reverse_buzzer = (erb_val == "true" || erb_val == "True" || erb_val == "1");
       RCLCPP_INFO(rclcpp::get_logger("DiffDriveArduinoHardware"),
                   "Reverse buzzer enabled: %s", cfg_.enable_reverse_buzzer ? "true" : "false");
     }
     else
     {
       cfg_.enable_reverse_buzzer = true; // Default aktif
+    }
+
+    // Encoder sıçrama tespiti eşiği
+    auto mvj_it = info_.hardware_parameters.find("max_vel_jump");
+    if (mvj_it != info_.hardware_parameters.end() && !mvj_it->second.empty())
+    {
+      cfg_.max_vel_jump = ::std::stod(mvj_it->second);
+      RCLCPP_INFO(rclcpp::get_logger("DiffDriveArduinoHardware"),
+                  "Max velocity jump threshold set to: %.1f rad/s", cfg_.max_vel_jump);
     }
 
     // PID parametreleri — hepsi birlikte olmalı
@@ -191,15 +201,15 @@ hardware_interface::CallbackReturn DiffDriveArduinoHardware::on_init(
 {
   ::std::vector<hardware_interface::StateInterface> state_interfaces;
 
-  state_interfaces.emplace_back(
-    wheel_l_.name, hardware_interface::HW_IF_POSITION, &wheel_l_.pos);
-  state_interfaces.emplace_back(
-    wheel_l_.name, hardware_interface::HW_IF_VELOCITY, &wheel_l_.vel);
+  state_interfaces.emplace_back(hardware_interface::StateInterface(
+    wheel_l_.name, hardware_interface::HW_IF_POSITION, &wheel_l_.pos));
+  state_interfaces.emplace_back(hardware_interface::StateInterface(
+    wheel_l_.name, hardware_interface::HW_IF_VELOCITY, &wheel_l_.vel));
 
-  state_interfaces.emplace_back(
-    wheel_r_.name, hardware_interface::HW_IF_POSITION, &wheel_r_.pos);
-  state_interfaces.emplace_back(
-    wheel_r_.name, hardware_interface::HW_IF_VELOCITY, &wheel_r_.vel);
+  state_interfaces.emplace_back(hardware_interface::StateInterface(
+    wheel_r_.name, hardware_interface::HW_IF_POSITION, &wheel_r_.pos));
+  state_interfaces.emplace_back(hardware_interface::StateInterface(
+    wheel_r_.name, hardware_interface::HW_IF_VELOCITY, &wheel_r_.vel));
 
   return state_interfaces;
 }
@@ -208,11 +218,11 @@ hardware_interface::CallbackReturn DiffDriveArduinoHardware::on_init(
 {
   ::std::vector<hardware_interface::CommandInterface> command_interfaces;
 
-  command_interfaces.emplace_back(
-    wheel_l_.name, hardware_interface::HW_IF_VELOCITY, &wheel_l_.cmd);
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+    wheel_l_.name, hardware_interface::HW_IF_VELOCITY, &wheel_l_.cmd));
 
-  command_interfaces.emplace_back(
-    wheel_r_.name, hardware_interface::HW_IF_VELOCITY, &wheel_r_.cmd);
+  command_interfaces.emplace_back(hardware_interface::CommandInterface(
+    wheel_r_.name, hardware_interface::HW_IF_VELOCITY, &wheel_r_.cmd));
 
   return command_interfaces;
 }
@@ -248,9 +258,15 @@ hardware_interface::CallbackReturn DiffDriveArduinoHardware::on_cleanup(
   if (comms_.connected())
   {
     // GÜVENLİK: disconnect öncesi motoru durdur
+    // try-catch: LibSerial::NotOpen gibi exception'ları yakalar (USB çekilmesi vb.)
+    // return false kontrolü: ReadTimeout sessiz başarısızlığını yakalar
     try
     {
-      comms_.set_motor_values(0, 0);
+      if (!comms_.set_motor_values(0, 0))
+      {
+        RCLCPP_WARN(rclcpp::get_logger("DiffDriveArduinoHardware"),
+                    "Cleanup: motor durdurma komutu zaman aşımına uğradı.");
+      }
     }
     catch (const std::exception & e)
     {
@@ -296,7 +312,11 @@ hardware_interface::CallbackReturn DiffDriveArduinoHardware::on_deactivate(
   {
     try
     {
-      comms_.set_motor_values(0, 0);
+      if (!comms_.set_motor_values(0, 0))
+      {
+        RCLCPP_WARN(rclcpp::get_logger("DiffDriveArduinoHardware"),
+                    "Deactivate: motor durdurma komutu zaman aşımına uğradı.");
+      }
       if (buzzer_active_)
       {
         comms_.set_buzzer_state(false);
@@ -328,9 +348,12 @@ hardware_interface::return_type DiffDriveArduinoHardware::read(
 
   if (!comms_.read_encoder_values(wheel_l_.enc, wheel_r_.enc))
   {
-    // Timeout veya bozuk cevap — eski encoder değerleri korunur, bu kareyi atla
+    // Timeout veya bozuk cevap — eski encoder değerleri korunur, bu kareyi atla.
+    // first_read_ = true: sonraki başarılı okumada sadece pozisyon başlatılır,
+    // velocity hesaplanmaz — iki cycle'lık birikmiş delta sıçramasını önler.
     RCLCPP_WARN(rclcpp::get_logger("DiffDriveArduinoHardware"),
                 "Encoder okunamadı, bu kare atlandı.");
+    first_read_ = true;
     return hardware_interface::return_type::OK;
   }
 
@@ -351,6 +374,9 @@ hardware_interface::return_type DiffDriveArduinoHardware::read(
     return hardware_interface::return_type::OK;
   }
 
+  double vel_prev_l = wheel_l_.vel;
+  double vel_prev_r = wheel_r_.vel;
+
   double pos_prev = wheel_l_.pos;
   wheel_l_.pos = wheel_l_.calc_enc_angle();
   wheel_l_.vel = (wheel_l_.pos - pos_prev) / delta_seconds;
@@ -358,6 +384,23 @@ hardware_interface::return_type DiffDriveArduinoHardware::read(
   pos_prev = wheel_r_.pos;
   wheel_r_.pos = wheel_r_.calc_enc_angle();
   wheel_r_.vel = (wheel_r_.pos - pos_prev) / delta_seconds;
+
+  // Arduino reset / encoder 0'lanma tespiti:
+  // Gerçek sıçrama = bir cycle içinde hızdaki ani değişim; mutlak hız değil.
+  // Encoder reset olursa pozisyon 0'a atlar → hız o cycle'da aşırı büyür.
+  double delta_vel_l = std::abs(wheel_l_.vel - vel_prev_l);
+  double delta_vel_r = std::abs(wheel_r_.vel - vel_prev_r);
+  if (delta_vel_l > cfg_.max_vel_jump || delta_vel_r > cfg_.max_vel_jump)
+  {
+    RCLCPP_WARN(rclcpp::get_logger("DiffDriveArduinoHardware"),
+                "Anormal hız sıçraması tespit edildi (L=%.1f→%.1f R=%.1f→%.1f rad/s) — "
+                "Arduino reset mi? Encoder pozisyonu yeniden başlatılıyor.",
+                vel_prev_l, wheel_l_.vel, vel_prev_r, wheel_r_.vel);
+    wheel_l_.vel = 0.0;
+    wheel_r_.vel = 0.0;
+    first_read_ = true;  // Sonraki frame'de pozisyon yeniden başlatılır, spike olmaz
+    return hardware_interface::return_type::OK;
+  }
 
   return hardware_interface::return_type::OK;
 }
@@ -370,8 +413,24 @@ hardware_interface::return_type DiffDriveArduinoHardware::write(
     return hardware_interface::return_type::ERROR;
   }
 
-  int motor_l_counts_per_loop = wheel_l_.cmd / wheel_l_.rads_per_count / cfg_.loop_rate;
-  int motor_r_counts_per_loop = wheel_r_.cmd / wheel_r_.rads_per_count / cfg_.loop_rate;
+  // NaN koruması: ROS2 kontrolcüsünden geçersiz hız gelirse motoru durdur
+  if (std::isnan(wheel_l_.cmd) || std::isnan(wheel_r_.cmd) ||
+      std::isinf(wheel_l_.cmd) || std::isinf(wheel_r_.cmd))
+  {
+    RCLCPP_WARN(rclcpp::get_logger("DiffDriveArduinoHardware"),
+                "Geçersiz motor komutu (NaN/Inf) — motorlar durduruldu. L=%.3f R=%.3f",
+                wheel_l_.cmd, wheel_r_.cmd);
+    if (!comms_.set_motor_values(0, 0))
+    {
+      RCLCPP_WARN(rclcpp::get_logger("DiffDriveArduinoHardware"),
+                  "NaN/Inf guard: motor durdurma komutu zaman aşımına uğradı.");
+    }
+    return hardware_interface::return_type::OK;
+  }
+
+  // lround: 0.8 tick → 1, static_cast kesme: 0.8 → 0 (deadband — robot hareket etmez)
+  int motor_l_counts_per_loop = static_cast<int>(std::lround(wheel_l_.cmd / wheel_l_.rads_per_count / cfg_.loop_rate));
+  int motor_r_counts_per_loop = static_cast<int>(std::lround(wheel_r_.cmd / wheel_r_.rads_per_count / cfg_.loop_rate));
 
   // Motor komutu her zaman önce gönderilir
   if (!comms_.set_motor_values(motor_l_counts_per_loop, motor_r_counts_per_loop))

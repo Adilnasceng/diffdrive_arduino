@@ -74,11 +74,6 @@ public:
     return response;
   }
 
-  void send_empty_msg()
-  {
-    ::std::string response = send_msg("\r");
-  }
-
   // Başarıda true, timeout/geçersiz cevapta false döner; false ise val_1/val_2 değişmez
   bool read_encoder_values(int &val_1, int &val_2)
   {
@@ -93,12 +88,21 @@ public:
     size_t del_pos = response.find(' ');
     if (del_pos == ::std::string::npos)
     {
-      ::std::cerr << "Invalid encoder response: '" << response << "'" << ::std::endl;
+      ::std::cerr << "Invalid encoder response (no space): '" << response << "'" << ::std::endl;
       return false;
     }
 
-    val_1 = ::std::atoi(response.substr(0, del_pos).c_str());
-    val_2 = ::std::atoi(response.substr(del_pos + 1).c_str());
+    // Boşluktan sonra gerçek bir değer olduğunu doğrula
+    size_t val2_start = del_pos + 1;
+    if (val2_start >= response.size() ||
+        (response[val2_start] != '-' && !::std::isdigit(static_cast<unsigned char>(response[val2_start]))))
+    {
+      ::std::cerr << "Invalid encoder response (missing second value): '" << response << "'" << ::std::endl;
+      return false;
+    }
+
+    val_1 = static_cast<int>(::std::atol(response.substr(0, del_pos).c_str()));
+    val_2 = static_cast<int>(::std::atol(response.substr(val2_start).c_str()));
     return true;
   }
 

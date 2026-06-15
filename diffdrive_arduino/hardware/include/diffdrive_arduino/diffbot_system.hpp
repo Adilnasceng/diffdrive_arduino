@@ -42,6 +42,7 @@ struct Config
   int pid_o = 0;
   double reverse_speed_threshold = -0.1; // Geri gitme eşiği (wheel joint command, rad/s)
   bool enable_reverse_buzzer = true; // Geri gitme buzzer'ını aktif et/deaktif et
+  double max_vel_jump = 30.0; // Encoder sıçrama tespiti eşiği (rad/s)
 };
 
 public:
