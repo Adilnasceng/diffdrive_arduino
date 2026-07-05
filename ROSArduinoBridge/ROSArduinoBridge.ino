@@ -73,7 +73,7 @@
 /* Variable initialization */
 // A pair of varibles to help parse serial commands (thanks Fergs)
 int arg = 0;
-int index = 0;
+int idx = 0;
 
 // Variable to hold an input character
 char chr;
@@ -102,7 +102,7 @@ void resetCommand() {
   arg1 = 0;
   arg2 = 0;
   arg = 0;
-  index = 0;
+  idx = 0;
 }
 
 /* Buzzer pattern kontrolü */
@@ -297,8 +297,8 @@ void loop() {
 
     // Terminate a command with a CR
     if (chr == 13) {
-      if (arg == 1) argv1[index] = '\0';
-      else if (arg == 2) argv2[index] = '\0';
+      if (arg == 1) argv1[idx] = '\0';
+      else if (arg == 2) argv2[idx] = '\0';
       runCommand();
       resetCommand();
     }
@@ -307,14 +307,14 @@ void loop() {
       // Step through the arguments
       if (arg == 0) arg = 1;
       else if (arg == 1)  {
-        argv1[index] = '\0';
+        argv1[idx] = '\0';
         arg = 2;
-        index = 0;
+        idx = 0;
       }
       else if (arg == 2) {
         /* Fazladan boşluk: argv2'yi sonlandır, daha fazla karakter kabul etme */
-        argv2[index] = '\0';
-        index = 15;
+        argv2[idx] = '\0';
+        idx = 15;
       }
       continue;
     }
@@ -325,10 +325,10 @@ void loop() {
       }
       else if (arg == 1) {
         // Subsequent arguments can be more than one character
-        if (index < 15) argv1[index++] = chr;
+        if (idx < 15) argv1[idx++] = chr;
       }
       else if (arg == 2) {
-        if (index < 15) argv2[index++] = chr;
+        if (idx < 15) argv2[idx++] = chr;
       }
     }
   }
